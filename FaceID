@@ -1,0 +1,93 @@
+import cv2
+import face_recognition
+import face_recognition_models
+
+def samepic(old_faces, new_face):
+    allow = 100
+    for i in range(len(old_faces)):
+        if (
+                old_faces[i][0] + allow > new_face[0] > old_faces[i][0] - allow and new_face[1] < old_faces[i][1] + allow and new_face[1] > old_faces[i][1] - allow):  # same face
+            # old_faces[i][0] = new_face[0]
+            # old_faces[i][1] = new_face[1]
+            old_faces[i] = new_face
+            return -1
+    old_faces.append(new_face)
+    return 1
+
+
+pic_counter = 0
+frame_counter = 0
+old_faces = []
+
+# from video
+obj = r"/Users/nicola/Desktop/copyPc/HDFilmato (2).mp4"
+cap = cv2.VideoCapture(obj)
+
+# from webcam
+# cap = cv2.VideoCapture(0)
+
+# Create the haar cascade
+face_cascade = cv2.CascadeClassifier(
+    '/Users/nicola/PycharmProjects/readFromWebcam/venv/lib/python3.7/site-packages/cv2/data/haarcascade_frontalface_default.xml')
+
+face1=face_recognition.load_image_file(r"/Users/nicola/PycharmProjects/recognisation_try1/nonna.JPG")
+face2=face_recognition.load_image_file(r"/Users/nicola/PycharmProjects/recognisation_try1/nonno.JPG")
+
+face1_encoded=face_recognition.face_encodings(face1)
+face2_encoded=face_recognition.face_encodings(face2)
+
+uploaded_images=[
+    face1_encoded, face2_encoded
+]
+
+# capture frame-by-frame
+while (True):
+    ret, frame = cap.read()
+    frame_counter = frame_counter + 1
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    print("F",frame_counter)
+    #detect face
+    faces = face_cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.7,
+        minNeighbors=5,
+        minSize=(30, 30),
+        flags=cv2.CASCADE_SCALE_IMAGE
+    )
+
+    face_names = []
+    for facess in uploaded_images:
+        # See if the face is a match for the known face(s)
+        if len(faces)>0:
+            match = face_recognition.compare_faces(uploaded_images, faces[0], tolerance=0.50)
+            name = None
+            if match[0]:
+                name = "NONNO"
+            elif match[1]:
+                name = "NONNA"
+
+            face_names.append(name)
+            print(name)
+    #draw a rectangle around the faces
+    for (x, y, w, h) in faces:
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        #check if the detected face is another face
+        new_face = (x, y)
+        if samepic(old_faces, new_face) == 1:
+            pic_counter = pic_counter + 1
+            print("Face #", pic_counter)
+
+        #empty the old-faces vector
+        if frame_counter == 750:
+            frame_counter = 0
+            old_faces = []
+
+    #display the resulting frame
+    cv2.imshow("Faces found", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+#when everything done, release the capture and close the program
+cap.release()
+cv2.destroyAllWindows()
